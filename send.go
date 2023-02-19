@@ -82,53 +82,61 @@ func sendValidArgs(cmd *cobra.Command, args []string, toComplete string) ([]stri
 	return complete, cobra.ShellCompDirectiveNoFileComp
 }
 
-func sendRequest(ctx context.Context, remote string, args []string) error {
+func sendRequest(ctx context.Context, remote, customBody string, args []string) error {
 	parts := strings.Split(args[0], "/")
 	if len(parts) != 2 {
 		return errors.Errorf("Invalid method name %q. It should be like: package.subpackage.FooService/FooMethod", args[0])
 	}
 
-	data := map[string]any{}
-	for _, arg := range args[1:] {
-		if !strings.Contains(arg, "=") {
-			continue
-		}
-
-		parts := strings.SplitN(arg, "=", 2)
-		key := strings.TrimSpace(parts[0])
-
-		if key == "" {
-			return errors.Errorf("Invalid argument %q", arg)
-		}
-
-		var value any = strings.TrimSpace(parts[1])
-		if strings.HasSuffix(key, ":") {
-			key = strings.TrimSpace(strings.TrimSuffix(key, ":"))
-
-			switch value {
-			case "true":
-				value = true
-			case "false":
-				value = false
-			case "null":
-				value = nil
-			default:
-				var err error
-				value, err = strconv.ParseInt(value.(string), 10, 64)
-				if err != nil {
-					return errors.Errorf("Invalid argument %q", arg)
-				}
-			}
-		}
-
-		if err := setPath(data, key, value); err != nil {
-			return errors.Trace(err)
-		}
+	if customBody != "" && len(args) > 1 {
+		return errors.Errorf("You can't use --body and pass arguments at the same time")
 	}
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(data); err != nil {
-		return errors.Trace(err)
+	if customBody != "" {
+		fmt.Fprint(&buf, customBody)
+	} else {
+		data := map[string]any{}
+		for _, arg := range args[1:] {
+			if !strings.Contains(arg, "=") {
+				continue
+			}
+
+			parts := strings.SplitN(arg, "=", 2)
+			key := strings.TrimSpace(parts[0])
+
+			if key == "" {
+				return errors.Errorf("Invalid argument %q", arg)
+			}
+
+			var value any = strings.TrimSpace(parts[1])
+			if strings.HasSuffix(key, ":") {
+				key = strings.TrimSpace(strings.TrimSuffix(key, ":"))
+
+				switch value {
+				case "true":
+					value = true
+				case "false":
+					value = false
+				case "null":
+					value = nil
+				default:
+					var err error
+					value, err = strconv.ParseInt(value.(string), 10, 64)
+					if err != nil {
+						return errors.Errorf("Invalid argument %q", arg)
+					}
+				}
+			}
+
+			if err := setPath(data, key, value); err != nil {
+				return errors.Trace(err)
+			}
+		}
+
+		if err := json.NewEncoder(&buf).Encode(data); err != nil {
+			return errors.Trace(err)
+		}
 	}
 
 	target := fmt.Sprintf("https://%s/%s/%s", remote, parts[0], parts[1])

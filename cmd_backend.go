@@ -1,6 +1,9 @@
 package main
 
 import (
+	"io"
+	"os"
+
 	"github.com/spf13/cobra"
 	"libs.altipla.consulting/errors"
 )
@@ -15,7 +18,17 @@ var cmdBackend = &cobra.Command{
 }
 
 func init() {
+	var flagBody string
+	cmdAPI.Flags().StringVarP(&flagBody, "body", "d", "", "Body of the request.")
+
 	cmdBackend.RunE = func(cmd *cobra.Command, args []string) error {
-		return errors.Trace(sendRequest(cmd.Context(), "backend.dev.remote", args))
+		if flagBody == "-" {
+			body, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return errors.Trace(err)
+			}
+			flagBody = string(body)
+		}
+		return errors.Trace(sendRequest(cmd.Context(), "backend.dev.remote", flagBody, args))
 	}
 }
