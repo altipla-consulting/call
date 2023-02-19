@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/TylerBrock/colorjson"
@@ -94,7 +95,35 @@ func sendRequest(ctx context.Context, remote string, args []string) error {
 		}
 
 		parts := strings.SplitN(arg, "=", 2)
-		data[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		key := strings.TrimSpace(parts[0])
+
+		if key == "" {
+			return errors.Errorf("Invalid argument %q", arg)
+		}
+
+		var value any = strings.TrimSpace(parts[1])
+		if strings.HasSuffix(key, ":") {
+			key = strings.TrimSpace(strings.TrimSuffix(key, ":"))
+
+			switch value {
+			case "true":
+				value = true
+			case "false":
+				value = false
+			case "null":
+				value = nil
+			default:
+				var err error
+				value, err = strconv.ParseInt(value.(string), 10, 64)
+				if err != nil {
+					return errors.Errorf("Invalid argument %q", arg)
+				}
+			}
+		}
+
+		if err := setPath(data, key, value); err != nil {
+			return errors.Trace(err)
+		}
 	}
 
 	var buf bytes.Buffer
@@ -216,6 +245,31 @@ func printJSON(b []byte) error {
 		return errors.Trace(err)
 	}
 	fmt.Println(string(pretty))
+
+	return nil
+}
+
+func setPath(object map[string]any, path string, value any) error {
+	it := object
+	parts := strings.Split(path, ".")
+	for _, p := range parts[:len(parts)-1] {
+		switch v := it[p].(type) {
+		case map[string]any:
+			it = v
+		case nil:
+			m := map[string]any{}
+			it[p] = m
+			it = m
+		default:
+			return errors.Errorf("Invalid path %q already has value %#v", path, v)
+		}
+	}
+
+	if it == nil {
+		return errors.Errorf("Invalid path %q", path)
+	}
+
+	it[parts[len(parts)-1]] = value
 
 	return nil
 }
