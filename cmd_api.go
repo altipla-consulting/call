@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/TylerBrock/colorjson"
@@ -14,16 +16,79 @@ import (
 	"libs.altipla.consulting/errors"
 )
 
-var CmdAPI = &cobra.Command{
+var cmdAPI = &cobra.Command{
 	Use:          "api",
 	Short:        "Call a method of https://api.dev.remote",
 	SilenceUsage: true,
 	Example:      "call api foo.bar.FooService/BarMethod param=foo other=bar My-Header:value",
 	Args:         cobra.MinimumNArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if _, err := os.Stat("protos"); os.IsNotExist(err) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		var complete []string
+		fn := func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return errors.Trace(err)
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if filepath.Ext(path) != ".proto" {
+				return nil
+			}
+
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return errors.Trace(err)
+			}
+			var pkg, svc string
+			var methods []string
+			for _, line := range strings.Split(string(content), "\n") {
+				line = strings.TrimSpace(line)
+
+				if strings.HasPrefix(line, "package ") {
+					pkg = line
+					pkg = strings.TrimPrefix(pkg, "package ")
+					pkg = strings.TrimSuffix(pkg, ";")
+					pkg = strings.TrimSpace(pkg)
+				}
+				if strings.HasPrefix(line, "service ") {
+					svc = line
+					svc = strings.TrimPrefix(svc, "service ")
+					svc = strings.TrimSuffix(svc, "{")
+					svc = strings.TrimSpace(svc)
+				}
+				if strings.HasPrefix(line, "rpc ") {
+					methodName := line
+					methodName = strings.TrimPrefix(methodName, "rpc ")
+					methodName = strings.Split(methodName, "(")[0]
+					methodName = strings.TrimSpace(methodName)
+					methods = append(methods, methodName)
+				}
+			}
+
+			for _, method := range methods {
+				sug := fmt.Sprintf("%s.%s/%s", pkg, svc, method)
+				if strings.HasPrefix(sug, toComplete) {
+					complete = append(complete, sug)
+				}
+			}
+
+			return nil
+		}
+		if err := filepath.Walk("protos", fn); err != nil {
+			cobra.CompErrorln(err.Error())
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		return complete, cobra.ShellCompDirectiveNoFileComp
+	},
 }
 
 func init() {
-	CmdAPI.RunE = func(cmd *cobra.Command, args []string) error {
+	cmdAPI.RunE = func(cmd *cobra.Command, args []string) error {
 		parts := strings.Split(args[0], "/")
 		if len(parts) != 2 {
 			return errors.Errorf("invalid method name %q", args[0])
