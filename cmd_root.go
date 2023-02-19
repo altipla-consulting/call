@@ -17,6 +17,7 @@ func init() {
 	CmdRoot.AddCommand(cmdAPI)
 	CmdRoot.AddCommand(cmdInstall)
 	CmdRoot.AddCommand(cmdUpdate)
+	CmdRoot.AddCommand(cmdBackend)
 
 	CmdRoot.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		log.SetLevel(log.InfoLevel)
