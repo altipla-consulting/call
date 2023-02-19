@@ -23,6 +23,10 @@ func sendValidArgs(cmd *cobra.Command, args []string, toComplete string) ([]stri
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	var complete []string
 	fn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
