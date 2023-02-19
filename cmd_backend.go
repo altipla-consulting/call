@@ -19,7 +19,7 @@ var cmdBackend = &cobra.Command{
 
 func init() {
 	var flagBody string
-	cmdAPI.Flags().StringVarP(&flagBody, "body", "d", "", "Body of the request.")
+	cmdBackend.Flags().StringVarP(&flagBody, "body", "d", "", "Body of the request.")
 
 	cmdBackend.RunE = func(cmd *cobra.Command, args []string) error {
 		if flagBody == "-" {

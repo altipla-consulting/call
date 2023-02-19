@@ -12,7 +12,7 @@ var CmdRoot = &cobra.Command{
 
 func init() {
 	var flagDebug bool
-	CmdRoot.PersistentFlags().BoolVarP(&flagDebug, "debug", "d", false, "Enable debug logging for this tool")
+	CmdRoot.PersistentFlags().BoolVar(&flagDebug, "debug", false, "Enable debug logging for this tool")
 
 	CmdRoot.AddCommand(cmdAPI)
 	CmdRoot.AddCommand(cmdInstall)
