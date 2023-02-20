@@ -151,7 +151,7 @@ func sendRequest(ctx context.Context, remote, customBody string, args []string) 
 	req.Header.Set("Content-Type", "application/json")
 
 	for _, arg := range args {
-		if !strings.Contains(arg, ":") {
+		if !strings.Contains(arg, ":") || strings.Contains(arg, ":=") {
 			continue
 		}
 
