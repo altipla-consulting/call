@@ -92,12 +92,15 @@ func sendRequest(ctx context.Context, remote, customBody string, args []string) 
 		return errors.Errorf("Invalid method name %q. It should be like: package.subpackage.FooService/FooMethod", args[0])
 	}
 
-	if customBody != "" && len(args) > 1 {
-		return errors.Errorf("You can't use --body and pass arguments at the same time")
-	}
-
 	var buf bytes.Buffer
 	if customBody != "" {
+		for _, arg := range args[1:] {
+			if !strings.Contains(arg, "=") {
+				continue
+			}
+			return errors.Errorf("You can't use --body and pass arguments at the same time: %q", arg)
+		}
+
 		fmt.Fprint(&buf, customBody)
 	} else {
 		data := map[string]any{}
